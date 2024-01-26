@@ -11,6 +11,7 @@
 
 float gVolumeIntensity = 1.0f;
 float gCfgVolumetricIntensityMultiplier = 1.0f;
+bool mCfgAlwaysEnabled = false;
 
 void (__cdecl *CRenderPhaseDeferredLighting_LightsToScreen__BuildRenderListO)() = nullptr;
 void (__cdecl *CopyLightO)() = nullptr;
@@ -101,6 +102,14 @@ void Init()
 
 				gCfgVolumetricIntensityMultiplier = std::stof(currLine.substr(index));
 			}
+
+			if(currLine.rfind("AlwaysEnabled") != std::string::npos)
+			{
+				if(currLine.rfind("true") != std::string::npos)
+				{
+					mCfgAlwaysEnabled = true;
+				}
+			}
 		}
 	}
 
@@ -112,6 +121,12 @@ void Init()
 void Update()
 {
 	Init();
+
+	if(mCfgAlwaysEnabled)
+	{
+		gVolumeIntensity = 4.0f * gCfgVolumetricIntensityMultiplier;
+		return;
+	}
 
 	gVolumeIntensity = 0.0f;
 
