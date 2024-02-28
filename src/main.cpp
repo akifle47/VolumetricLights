@@ -155,7 +155,7 @@ void Update()
 void OnAfterCopyLight(rage::CLightSource *light)
 {
 	//CLightSource doesnt have a member to control the volume intensity so
-	//i abuse type casting to use field_C for it as im p sure its just a padding anyway
+	//i abuse type casting to use field_C for it as im p sure its just padding anyway
 
 	if(light->mFlags & 8 /*volumetric*/)
 	{
