@@ -114,7 +114,7 @@ void Init()
 	}
 
 	//movss xmm0, dword ptr [esi + eax * 1 + 0x4C] or xmm0 = Lights::mRenderLights[i].mTxdId
-	uint8_t buffer[] = {0x44, 0x06, 0x4C, 0x90, 0x90};
+	uint8_t buffer[] = {0x44, 0x06, 0xC, 0x90, 0x90};
 	Utils::WriteMemory(0x630B00, buffer, 5);
 }
 
@@ -155,11 +155,11 @@ void Update()
 void OnAfterCopyLight(rage::CLightSource *light)
 {
 	//CLightSource doesnt have a member to control the volume intensity so
-	//i abuse type casting to use mTxdId for it as im p sure its only used for headlights anyway
+	//i abuse type casting to use field_C for it as im p sure its just a padding anyway
 
 	if(light->mFlags & 8 /*volumetric*/)
 	{
-		*(float*)&light->mTxdId = 1.0f;
+		*(float*)&light->field_C = 1.0f;
 	}
 	else if(light->mType == rage::LT_SPOT && !(light->mFlags & 0x300)/*vehicles and traffic lights*/)
 	{
@@ -168,7 +168,7 @@ void OnAfterCopyLight(rage::CLightSource *light)
 			light->mVolumeSize = 1.0f;
 			light->mVolumeScale = 0.5f;
 			light->mFlags |= 8;
-			*(float*)&light->mTxdId = gVolumeIntensity;
+			*(float*)&light->field_C = gVolumeIntensity;
 		}
 	}
 }
