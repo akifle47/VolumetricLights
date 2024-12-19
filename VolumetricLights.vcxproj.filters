@@ -27,9 +27,15 @@
     <ClInclude Include="src\Utils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="deps\Hooking.Patterns\Hooking.Patterns.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="deps\Hooking.Patterns\Hooking.Patterns.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
