@@ -1,5 +1,5 @@
 #pragma once
-#include "../Utils.h"
+#include "Hooking.Patterns.h"
 
 namespace CWeather
 {
@@ -15,21 +15,35 @@ namespace CWeather
 		LIGHTNING
 	};
 
+	static eWeatherType* msCurrentWeather = nullptr;
+	static eWeatherType* msNextWeather = nullptr;
+	static float* msNextWeatherPercentage = nullptr;
+
+	bool Init()
+	{
+		auto pattern = hook::pattern("8B 0D ? ? ? ? 89 08 C3 8B 54 24 04 A1 ? ? ? ?");
+		if(pattern.empty())
+			return false;
+
+		msCurrentWeather = *(eWeatherType**)pattern.get_first(2);
+		msNextWeather = *(eWeatherType**)pattern.get_first(14);
+		msNextWeatherPercentage = *(float**)pattern.get_first(-10);
+
+		return true;
+	}
+
 	static eWeatherType GetCurrentWeather()
 	{
-		static eWeatherType *currentWeather = *(eWeatherType**)Utils::ReadMemory(0x74E6A7);
-		return *currentWeather;
+		return *msCurrentWeather;
 	}
 
 	static eWeatherType GetNextWeather()
 	{
-		static eWeatherType *nextWeather = *(eWeatherType**)Utils::ReadMemory(0x74E6B3);
-		return *nextWeather;
+		return *msNextWeather;
 	}
 
 	static float GetNextWeatherPercentage()
 	{
-		static float *nextWeatherPctg = *(float**)Utils::ReadMemory(0x74E69B);
-		return *nextWeatherPctg;
+		return *msNextWeatherPercentage;
 	}
 }

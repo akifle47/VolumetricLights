@@ -1,22 +1,21 @@
-#define _CRT_SECURE_NO_WARNINGS
-
-#include <Windows.h>
-#include <fstream>
-#include <string>
-#include <cstdint>
-
-#include "Utils.h"
+#include "Hooking.Patterns.h"
+#include "injector/injector.hpp"
 #include "rage/LightSource.h"
 #include "rage/Weather.h"
 
+#include <Windows.h>
+#include <fstream>
+#include <cstdint>
+
 float gVolumeIntensity = 1.0f;
 float gCfgVolumetricIntensityMultiplier = 1.0f;
-bool mCfgAlwaysEnabled = false;
+bool gCfgAlwaysEnabled = false;
 
 void (__cdecl *CRenderPhaseDeferredLighting_LightsToScreen__BuildRenderListO)() = nullptr;
 void (__cdecl *CopyLightO)() = nullptr;
 
-void Init();
+void DisplayUnsupportedError();
+void ReadConfig();
 void Update();
 void OnAfterCopyLight(rage::CLightSource*);
 
@@ -55,29 +54,62 @@ BOOL WINAPI DllMain(HINSTANCE, DWORD fdwReason, LPVOID)
 {
 	if(fdwReason == DLL_PROCESS_ATTACH)
 	{
-		if(*(uint32_t *)Utils::ReadMemory(0x208C34) != 0x404B100F)
+		ReadConfig();
+
+		if(!CWeather::Init())
 		{
-			MessageBox(0, L"Only version 1.0.8.0 is supported", L"Snow.asi", MB_ICONERROR | MB_OK);
+			DisplayUnsupportedError();
 			return false;
 		}
-		
-		CRenderPhaseDeferredLighting_LightsToScreen__BuildRenderListO = *(void(__cdecl **)())Utils::ReadMemory(0x9E4874);
-		Utils::WriteMemory(0x9E4874, CRenderPhaseDeferredLighting_LightsToScreen__BuildRenderListH);
 
-		CopyLightO = (void(__cdecl *)())Utils::ReadMemory(0x62A7F0);
-		Utils::WriteCall(0x62DAB7, CopyLightH);
-		Utils::WriteCall(0x62DA71, CopyLightH);
+		auto pattern = hook::pattern("D9 1C 24 F3 0F 10 05 ? ? ? ? 8D 4C 24 7C F3 0F 11 54 24 ?");
+		if(pattern.empty())
+		{
+			DisplayUnsupportedError();
+			return false;
+		}
+		//movss xmm0, dword ptr [esi + eax * 1 + 0x4C] or xmm0 = Lights::mRenderLights[i].field_C
+		uint8_t buffer[] = {0x44, 0x06, 0xC, 0x90, 0x90};
+		injector::WriteMemoryRaw(pattern.get_first(6), buffer, 5, true);
+
+		pattern = hook::pattern("C7 06 ? ? ? ? C7 86 ? ? ? ? ? ? ? ? C6 46 1C 01 8B C6");
+		if(pattern.empty())
+		{
+			DisplayUnsupportedError();
+			return false;
+		}
+		uintptr_t* vft = *(uintptr_t**)pattern.get_first(2);
+		CRenderPhaseDeferredLighting_LightsToScreen__BuildRenderListO = (void(__cdecl*)())vft[8];
+		injector::WriteMemory(&vft[8], CRenderPhaseDeferredLighting_LightsToScreen__BuildRenderListH);
+
+		pattern = hook::pattern("8B CE C1 E1 07 03 0D ? ? ? ? E8 ? ? ? ?");
+		if(pattern.empty())
+		{
+			DisplayUnsupportedError();
+			return false;
+		}
+		CopyLightO = (void(__cdecl*)())injector::GetBranchDestination(pattern.get_first(11)).get();
+		injector::MakeCALL(pattern.get_first(11), CopyLightH);
+
+		pattern = hook::pattern("8B 54 24 08 8B C8 C1 E1 07 03 0D ? ? ? ? 52 E8 ? ? ? ?");
+		if(pattern.empty())
+		{
+			DisplayUnsupportedError();
+			return false;
+		}
+		injector::MakeCALL(pattern.get_first(16), CopyLightH);
 	}
 
 	return true;
 }
 
-void Init()
+void DisplayUnsupportedError()
 {
-	static bool initialized = false;
-	if(initialized)
-		return;
+	MessageBox(0, L"Unsupported Game Version", L"Snow.asi", MB_ICONERROR | MB_OK);
+}
 
+void ReadConfig()
+{
 	std::ifstream cfgFile("VolumetricLights.cfg");
 	if(cfgFile.is_open())
 	{
@@ -107,22 +139,16 @@ void Init()
 			{
 				if(currLine.rfind("true") != std::string::npos)
 				{
-					mCfgAlwaysEnabled = true;
+					gCfgAlwaysEnabled = true;
 				}
 			}
 		}
 	}
-
-	//movss xmm0, dword ptr [esi + eax * 1 + 0x4C] or xmm0 = Lights::mRenderLights[i].mTxdId
-	uint8_t buffer[] = {0x44, 0x06, 0xC, 0x90, 0x90};
-	Utils::WriteMemory(0x630B00, buffer, 5);
 }
 
 void Update()
 {
-	Init();
-
-	if(mCfgAlwaysEnabled)
+	if(gCfgAlwaysEnabled)
 	{
 		gVolumeIntensity = 4.0f * gCfgVolumetricIntensityMultiplier;
 		return;
@@ -157,7 +183,11 @@ void OnAfterCopyLight(rage::CLightSource *light)
 	//CLightSource doesnt have a member to control the volume intensity so
 	//i abuse type casting to use field_C for it as im p sure its just padding anyway
 
-	if(light->mFlags & 8 /*volumetric*/)
+	if(light->mIntensityTextureMaskHash == 0xDEAD)
+	{
+		light->mFlags &= ~8;
+	}
+	else if(light->mFlags & 8 /*volumetric*/)
 	{
 		*(float*)&light->field_C = 1.0f;
 	}

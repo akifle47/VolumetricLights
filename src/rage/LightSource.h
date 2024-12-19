@@ -17,17 +17,17 @@ namespace rage
 	{
 	public:
 		Vector3 mDirection;
-		int32_t field_C;
+		float field_C;
 		Vector3 mTangent;
-		int32_t field_1C;
+		float field_1C;
 		Vector3 mPosition;
-		int32_t field_2C;
+		float field_2C;
 		Vector4 mColor;
 		float mIntensity;
 		eLightType mType;
-		int32_t mFlags;
+		uint32_t mFlags;
 		int32_t mTxdId;
-		int32_t field_50;
+		int32_t mIntensityTextureMaskHash;
 		float mRadius;
 		float mInnerConeAngle;
 		float mOuterConeAngle;
@@ -37,7 +37,8 @@ namespace rage
 		int32_t field_6C;
 		float mVolumeSize;
 		float mVolumeScale;
-		uint8_t gap78[8];
+		int8_t field_78[7];
+		char field_7F;
 	};
 
 	static_assert(sizeof(CLightSource) == 0x80);

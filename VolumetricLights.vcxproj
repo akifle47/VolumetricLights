@@ -23,7 +23,6 @@
     <ClInclude Include="src\rage\LightSource.h" />
     <ClInclude Include="src\rage\Vector.h" />
     <ClInclude Include="src\rage\Weather.h" />
-    <ClInclude Include="src\Utils.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="deps\Hooking.Patterns\Hooking.Patterns.cpp" />
