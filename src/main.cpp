@@ -14,6 +14,8 @@ bool gCfgAlwaysEnabled = false;
 void (__cdecl *CRenderPhaseDeferredLighting_LightsToScreen__BuildRenderListO)() = nullptr;
 void (__cdecl *CopyLightO)() = nullptr;
 
+void (__cdecl *SetDeferredLightingParamsO)(rage::eLightType, rage::Vector4*, float, rage::Vector4*, rage::Vector4*, float, float, rage::Vector4*, void*) = nullptr;
+
 void DisplayUnsupportedError();
 void ReadConfig();
 void Update();
@@ -50,6 +52,15 @@ void __declspec(naked) CopyLightH()
 	}
 }
 
+void SetDeferredLightingParamsH(rage::eLightType type, rage::Vector4* pos, float radius, rage::Vector4* dir, rage::Vector4* tangent,
+								float coneOffset, float coneScale, rage::Vector4* color, void* texture)								
+{
+	pos->x -= 0.1f * dir->x;
+	pos->y -= 0.1f * dir->y;
+	pos->z -= 0.1f * dir->z;
+	SetDeferredLightingParamsO(type, pos, radius, dir, tangent, coneOffset, coneScale, color, texture);
+}
+
 BOOL WINAPI DllMain(HINSTANCE, DWORD fdwReason, LPVOID)
 {
 	if(fdwReason == DLL_PROCESS_ATTACH)
@@ -72,6 +83,7 @@ BOOL WINAPI DllMain(HINSTANCE, DWORD fdwReason, LPVOID)
 		uint8_t buffer[] = {0x44, 0x06, 0xC, 0x90, 0x90};
 		injector::WriteMemoryRaw(pattern.get_first(6), buffer, 5, true);
 
+
 		pattern = hook::pattern("C7 06 ? ? ? ? C7 86 ? ? ? ? ? ? ? ? C6 46 1C 01 8B C6");
 		if(pattern.empty())
 		{
@@ -81,6 +93,7 @@ BOOL WINAPI DllMain(HINSTANCE, DWORD fdwReason, LPVOID)
 		uintptr_t* vft = *(uintptr_t**)pattern.get_first(2);
 		CRenderPhaseDeferredLighting_LightsToScreen__BuildRenderListO = (void(__cdecl*)())vft[8];
 		injector::WriteMemory(&vft[8], CRenderPhaseDeferredLighting_LightsToScreen__BuildRenderListH);
+
 
 		pattern = hook::pattern("8B CE C1 E1 07 03 0D ? ? ? ? E8 ? ? ? ?");
 		if(pattern.empty())
@@ -98,6 +111,16 @@ BOOL WINAPI DllMain(HINSTANCE, DWORD fdwReason, LPVOID)
 			return false;
 		}
 		injector::MakeCALL(pattern.get_first(16), CopyLightH);
+
+
+		pattern = hook::pattern("E8 ? ? ? ? 33 DB 83 C4 24 38 5C 24 13 74 05");
+		if(pattern.empty())
+		{
+			DisplayUnsupportedError();
+			return false;
+		}
+		SetDeferredLightingParamsO = (void(__cdecl*)(rage::eLightType, rage::Vector4*, float, rage::Vector4*, rage::Vector4*, float, float, rage::Vector4*, void*))injector::GetBranchDestination(pattern.get_first(0)).get();
+		injector::MakeCALL(pattern.get_first(0), SetDeferredLightingParamsH);
 	}
 
 	return true;
